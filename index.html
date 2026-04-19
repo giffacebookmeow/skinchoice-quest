@@ -9,20 +9,13 @@
 *{box-sizing:border-box;margin:0;padding:0;}
 body{
   font-family:'Press Start 2P','Courier New',monospace;
-  background:#0f0e1a;
-  min-height:100vh;
+  background:#0f0e1a;min-height:100vh;
   display:flex;align-items:center;justify-content:center;
   padding:20px;
   background-image:radial-gradient(#1a1a2e 1px,transparent 1px);
   background-size:24px 24px;
 }
-.card{
-  background:#1a1c2c;
-  border:3px solid #3a3f5c;
-  box-shadow:6px 6px 0 #0a0a1a;
-  padding:22px 26px;
-  width:100%;max-width:480px;
-}
+.card{background:#1a1c2c;border:3px solid #3a3f5c;box-shadow:6px 6px 0 #0a0a1a;padding:22px 26px;width:100%;max-width:480px;}
 .gfont{font-family:'Press Start 2P','Courier New',monospace;}
 .bfont{font-family:system-ui,-apple-system,sans-serif;}
 .title{font-size:13px;color:#ffd700;margin-bottom:14px;line-height:1.8;text-shadow:2px 2px 0 #b38600;}
@@ -73,6 +66,9 @@ select{font-family:system-ui,sans-serif;font-size:13px;background:#0f0e1a;border
 .val-match{border-color:#2a7f4f;background:#0a1a10;}
 .val-miss{border-color:#e63946;background:#1a0a0a;}
 .lbl-form{font-family:system-ui,sans-serif;font-size:13px;color:#ffd700;margin-bottom:6px;display:block;}
+.save-status{font-family:system-ui,sans-serif;font-size:12px;padding:8px 12px;margin-top:10px;text-align:center;border-radius:0;}
+.save-ok{background:#0f2a1a;color:#a8ffce;border:1px solid #2a7f4f;}
+.save-err{background:#2a0a0a;color:#ffaaaa;border:1px solid #7f2a2a;}
 </style>
 </head>
 <body>
@@ -80,109 +76,92 @@ select{font-family:system-ui,sans-serif;font-size:13px;background:#0f0e1a;border
 
 <script>
 /* ============================================================
-   SkinChoice Quest
+   SkinChoice Quest v2
    โดยนายธนัช เจตะวัฒนะ
    คณะเศรษฐศาสตร์ จุฬาลงกรณ์มหาวิทยาลัย
-   ปีการศึกษา 2568
 
-   HOW TO SET UP GOOGLE SHEETS:
-   1. Create a new Google Sheet
-   2. Go to Extensions → Apps Script
-   3. Paste the following code and deploy as Web App:
-
-   function doPost(e) {
-     var sheet = SpreadsheetApp.getActiveSheet();
-     var data = JSON.parse(e.postData.contents);
+   GOOGLE APPS SCRIPT (use doGet — more reliable than doPost):
+   ─────────────────────────────────────────────────────────────
+   function doGet(e) {
+     var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+     var p = e.parameter;
      sheet.appendRow([
-       data.timestamp, data.gender, data.age, data.freq,
-       data.priceGainThreshold, data.qualityGainThreshold,
-       data.priceLossThreshold, data.qualityLossThreshold,
-       data.validationChoice, data.modelPrediction,
-       data.predictionMatch, data.alphaBeta,
-       data.lambdaP, data.lambdaQ
+       p.timestamp||'', p.gender||'', p.age||'', p.freq||'',
+       p.priceGainThreshold||'', p.qualityGainThreshold||'',
+       p.priceLossThreshold||'', p.qualityLossThreshold||'',
+       p.validationChoice||'', p.modelPrediction||'',
+       p.predictionMatch||'', p.alphaBeta||'',
+       p.lambdaP||'', p.lambdaQ||''
      ]);
-     return ContentService.createTextOutput('OK');
+     return ContentService.createTextOutput('OK')
+       .setMimeType(ContentService.MimeType.TEXT);
    }
-
-   4. Replace YOUR_SCRIPT_URL_HERE below with your deployment URL
+   ─────────────────────────────────────────────────────────────
+   DEPLOY STEPS:
+   1. Paste code above into Apps Script editor
+   2. Deploy → New deployment → Web app
+   3. Execute as: Me | Who has access: Anyone
+   4. Copy URL and paste below
    ============================================================ */
 
-const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbwgGyG-4rjtJXOAvkF1FCe43VGUDCi3QiAnZ--ljH4P-TP4n2tQz7NC91Fkikaj36K0fQ/exec';
+const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbzdX4mhAXWdhJryn0z1ibXq1D_lD1od2ZlPMtTXdkSoU7W0A3OJsKnzzEZy4NkBqO497A/exec';
 
 let step = 'welcome';
 let demo = {gender:'', age:'', freq:''};
 let sliders = {r1:250, r2:4.5, r3:450, r4:3.5};
 let choice = null;
 
-/* ── Pixel character ── */
-const CHAR = [
+const CHAR=[
   [0,6,6,6,6,6,0],[0,1,1,1,1,1,0],[0,1,2,1,1,2,0],
   [0,1,1,1,1,1,0],[0,1,2,2,2,1,0],[0,1,1,1,1,1,0],
   [3,3,3,3,3,3,3],[3,3,3,3,3,3,3],[3,3,3,3,3,3,3],
   [0,4,4,0,4,4,0],[0,4,4,0,4,4,0],[0,5,5,0,5,5,0],
 ];
-const PC = {0:'transparent',1:'#fcd5a0',2:'#1a0a00',3:'#e63946',4:'#264653',5:'#1a1a2e',6:'#2a1800'};
-const PX = 8;
+const PC={0:'transparent',1:'#fcd5a0',2:'#1a0a00',3:'#e63946',4:'#264653',5:'#1a1a2e',6:'#2a1800'};
+const PX=8;
 
-function charHTML() {
-  let h = '<div class="char-pixel-wrap">';
-  CHAR.forEach(r => {
-    h += '<div style="display:flex">';
-    r.forEach(c => { h += `<div style="width:${PX}px;height:${PX}px;background:${PC[c]}"></div>`; });
-    h += '</div>';
-  });
-  return h + '</div>';
+function charHTML(){
+  let h='<div class="char-pixel-wrap">';
+  CHAR.forEach(r=>{h+='<div style="display:flex">';r.forEach(c=>{h+=`<div style="width:${PX}px;height:${PX}px;background:${PC[c]}"></div>`;});h+='</div>';});
+  return h+'</div>';
 }
-
-function bubbleHTML(t) {
-  return `<div class="bubble">
-    <div class="bubble-box">${t.replace(/\n/g,'<br>')}</div>
-    <div class="bubble-dots">
-      <div class="bubble-dot" style="width:7px;height:7px"></div>
-      <div class="bubble-dot" style="width:5px;height:5px"></div>
-      <div class="bubble-dot" style="width:3px;height:3px"></div>
-    </div>
-  </div>`;
+function bubbleHTML(t){
+  return`<div class="bubble"><div class="bubble-box">${t.replace(/\n/g,'<br>')}</div><div class="bubble-dots"><div class="bubble-dot" style="width:7px;height:7px"></div><div class="bubble-dot" style="width:5px;height:5px"></div><div class="bubble-dot" style="width:3px;height:3px"></div></div></div>`;
 }
-
-function starsHTML(n, color) {
-  let h = '<div style="display:flex;align-items:center;justify-content:center;gap:2px;margin-bottom:2px">';
-  for (let i = 1; i <= 5; i++) {
-    const fill = Math.min(1, Math.max(0, n-(i-1)));
-    const pct = Math.round(fill * 100);
-    h += `<div style="position:relative;font-size:15px;color:#3a4580">☆<div style="position:absolute;top:0;left:0;overflow:hidden;width:${pct}%;color:${color}">★</div></div>`;
+function starsHTML(n,color){
+  let h='<div style="display:flex;align-items:center;justify-content:center;gap:2px;margin-bottom:2px">';
+  for(let i=1;i<=5;i++){
+    const fill=Math.min(1,Math.max(0,n-(i-1))),pct=Math.round(fill*100);
+    h+=`<div style="position:relative;font-size:15px;color:#3a4580">☆<div style="position:absolute;top:0;left:0;overflow:hidden;width:${pct}%;color:${color}">★</div></div>`;
   }
-  return h + '</div>';
+  return h+'</div>';
 }
-
-function pcardHTML(lbl, price, qual, style, showFav) {
-  const S = {
-    normal:    {bg:'#2d3561',border:'#3a4580',shadow:'#0a0a20',text:'#e8e8ff',price:'#ffd700',star:'#ffd700',sub:'#a8a8d8'},
-    highlight: {bg:'#fff3cd',border:'#ffc107',shadow:'#b38600',text:'#1a0a00',price:'#c77b00',star:'#c77b00',sub:'#666'},
-    warning:   {bg:'#2a0f0f',border:'#e63946',shadow:'#9b1b24',text:'#ffaaaa',price:'#ff6b6b',star:'#ff6b6b',sub:'#cc8888'},
-    alt:       {bg:'#0f2a1a',border:'#2a7f4f',shadow:'#0a3320',text:'#a8ffce',price:'#5fff9f',star:'#5fff9f',sub:'#5fcc8f'},
+function pcardHTML(lbl,price,qual,style,showFav){
+  const S={
+    normal:{bg:'#2d3561',border:'#3a4580',shadow:'#0a0a20',text:'#e8e8ff',price:'#ffd700',star:'#ffd700',sub:'#a8a8d8'},
+    highlight:{bg:'#fff3cd',border:'#ffc107',shadow:'#b38600',text:'#1a0a00',price:'#c77b00',star:'#c77b00',sub:'#666'},
+    warning:{bg:'#2a0f0f',border:'#e63946',shadow:'#9b1b24',text:'#ffaaaa',price:'#ff6b6b',star:'#ff6b6b',sub:'#cc8888'},
+    alt:{bg:'#0f2a1a',border:'#2a7f4f',shadow:'#0a3320',text:'#a8ffce',price:'#5fff9f',star:'#5fff9f',sub:'#5fcc8f'},
   };
-  const s = S[style] || S.normal;
-  const fav = showFav ? `<div class="fav-badge">★ ของโปรดคุณ</div>` : '';
-  return `<div id="pcard-${lbl.replace(/\s/g,'')}" style="background:${s.bg};border:3px solid ${s.border};padding:10px 14px;text-align:center;min-width:108px;box-shadow:4px 4px 0 ${s.shadow};transition:all 0.2s">
+  const s=S[style]||S.normal;
+  const fav=showFav?`<div class="fav-badge">★ ของโปรดคุณ</div>`:'';
+  return`<div id="pcard-${lbl.replace(/\s/g,'')}" style="background:${s.bg};border:3px solid ${s.border};padding:10px 14px;text-align:center;min-width:108px;box-shadow:4px 4px 0 ${s.shadow};transition:all 0.2s">
     ${fav}
     <div class="pcard-label" style="color:${s.text}">${lbl}</div>
     <div class="pcard-price p-price" style="color:${s.price}">${price} บาท</div>
-    <div class="p-stars" style="color:${s.star}">${starsHTML(qual, s.star)}</div>
+    <div class="p-stars" style="color:${s.star}">${starsHTML(qual,s.star)}</div>
     <div class="pcard-sub p-sub" style="color:${s.sub}">${Number(qual).toFixed(1)}/5 ดาว</div>
   </div>`;
 }
-
-function favReminderHTML() {
-  return `<div class="fav-reminder">
+function favReminderHTML(){
+  return`<div class="fav-reminder">
     <div class="fav-title">★ อย่าลืม</div>
     <div class="fav-body">ยี่ห้อ A คือสินค้าที่คุณใช้ประจำและชื่นชอบ<br>
     <strong style="color:#ffd700">ราคาปกติ 350 บาท / คุณภาพ 4.0 ดาว</strong></div>
   </div>`;
 }
-
-function shelfHTML(aP, aQ, bLbl, bP, bQ, think, aStyle, bStyle) {
-  return `<div class="shelf-wrap">
+function shelfHTML(aP,aQ,bLbl,bP,bQ,think,aStyle,bStyle){
+  return`<div class="shelf-wrap">
     <div style="height:6px;background:repeating-linear-gradient(90deg,#ffd700 0,#ffd700 25px,#0f1a2e 25px,#0f1a2e 50px);opacity:0.3"></div>
     <div style="height:8px;background:#6b3a1f;margin-top:36px"></div>
     <div class="shelf-products">${pcardHTML('ยี่ห้อ A',aP,aQ,aStyle,true)}${pcardHTML(bLbl,bP,bQ,bStyle,false)}</div>
@@ -191,103 +170,107 @@ function shelfHTML(aP, aQ, bLbl, bP, bQ, think, aStyle, bStyle) {
     <div class="char-row"><div>${bubbleHTML(think)}${charHTML()}</div></div>
   </div>`;
 }
-
-function updateCard(lbl, price, qual, starColor) {
-  const card = document.getElementById('pcard-' + lbl.replace(/\s/g,''));
-  if (!card) return;
-  card.querySelector('.p-price').textContent = price + ' บาท';
-  card.querySelector('.p-stars').innerHTML = starsHTML(qual, starColor);
-  card.querySelector('.p-sub').textContent = Number(qual).toFixed(1) + '/5 ดาว';
+function updateCard(lbl,price,qual,starColor){
+  const card=document.getElementById('pcard-'+lbl.replace(/\s/g,''));
+  if(!card)return;
+  card.querySelector('.p-price').textContent=price+' บาท';
+  card.querySelector('.p-stars').innerHTML=starsHTML(qual,starColor);
+  card.querySelector('.p-sub').textContent=Number(qual).toFixed(1)+'/5 ดาว';
 }
 
-/* ── Round definitions ── */
-const ROUNDS = {
-  r1: {
-    label:'รอบที่ 1/4', badge:'gain', badgeText:'ยี่ห้อ B ดึงดูด',
+const ROUNDS={
+  r1:{label:'รอบที่ 1/4',badge:'gain',badgeText:'ยี่ห้อ B ดึงดูด',
     title:'ถ้า B ถูกกว่า จะเปลี่ยนไหม?',
     think:'A ของโปรดฉัน\nราคา 350 บาท\nB ถูกกว่า แต่\nต้องถูกแค่ไหน?',
     desc:'<strong>ยี่ห้อ A ของโปรด:</strong> 350 บาท / 4.0 ดาว<br><strong>ยี่ห้อ B:</strong> คุณภาพเท่ากัน แต่ถูกกว่า<br><br>ลากสไลด์หาจุดที่ทำให้คุณรู้สึกว่า<br>"เลือกอะไรก็ได้เหมือนกัน"',
-    aStyle:'normal', bLbl:'ยี่ห้อ B', bStyle:'highlight',
-    aP:()=>350, aQ:()=>4, bP:v=>parseInt(v), bQ:()=>4,
-    min:100, max:349, step:1, def:250, unit:'บาท', isWarn:false,
+    aStyle:'normal',bLbl:'ยี่ห้อ B',bStyle:'highlight',
+    aP:()=>350,aQ:()=>4,bP:v=>parseInt(v),bQ:()=>4,
+    min:100,max:349,step:1,def:250,unit:'บาท',isWarn:false,
     diff:v=>`B ถูกกว่า A ของโปรดคุณ ${350-parseInt(v)} บาท`,
     sLabel:v=>`ราคายี่ห้อ B: ${v} บาท`,
-    onUpdate:v=>{ updateCard('ยี่ห้อB', parseInt(v), 4, '#c77b00'); }
+    onUpdate:v=>{updateCard('ยี่ห้อB',parseInt(v),4,'#c77b00');}
   },
-  r2: {
-    label:'รอบที่ 2/4', badge:'gain', badgeText:'ยี่ห้อ B ดึงดูด',
+  r2:{label:'รอบที่ 2/4',badge:'gain',badgeText:'ยี่ห้อ B ดึงดูด',
     title:'ถ้า B ดีกว่า จะเปลี่ยนไหม?',
     think:'A ของโปรดฉัน\nคุณภาพ 4 ดาว\nB ดีกว่า แต่\nต้องดีแค่ไหน?',
     desc:'<strong>ยี่ห้อ A ของโปรด:</strong> 350 บาท / 4.0 ดาว<br><strong>ยี่ห้อ B:</strong> ราคาเท่ากัน แต่คุณภาพดีกว่า<br><br>ลากสไลด์หาจุดที่ทำให้คุณรู้สึกว่า<br>"เลือกอะไรก็ได้เหมือนกัน"',
-    aStyle:'normal', bLbl:'ยี่ห้อ B', bStyle:'highlight',
-    aP:()=>350, aQ:()=>4, bP:()=>350, bQ:v=>parseFloat(v),
-    min:4.1, max:5.0, step:0.1, def:4.5, unit:'ดาว', isWarn:false,
+    aStyle:'normal',bLbl:'ยี่ห้อ B',bStyle:'highlight',
+    aP:()=>350,aQ:()=>4,bP:()=>350,bQ:v=>parseFloat(v),
+    min:4.1,max:5.0,step:0.1,def:4.5,unit:'ดาว',isWarn:false,
     diff:v=>`B ดีกว่า A ของโปรดคุณ ${(parseFloat(v)-4).toFixed(1)} ดาว`,
     sLabel:v=>`คุณภาพยี่ห้อ B: ${parseFloat(v).toFixed(1)} ดาว`,
-    onUpdate:v=>{ updateCard('ยี่ห้อB', 350, parseFloat(v), '#c77b00'); }
+    onUpdate:v=>{updateCard('ยี่ห้อB',350,parseFloat(v),'#c77b00');}
   },
-  r3: {
-    label:'รอบที่ 3/4', badge:'loss', badgeText:'ยี่ห้อ A ของโปรดแย่ลง',
+  r3:{label:'รอบที่ 3/4',badge:'loss',badgeText:'ยี่ห้อ A ของโปรดแย่ลง',
     title:'ถ้า A ของโปรดแพงขึ้น?',
     think:'A ของโปรดฉัน\nขึ้นราคาแล้ว...\nยังรักอยู่แต่\nทนได้แค่ไหน?',
     desc:'<strong>ยี่ห้อ A ของโปรด</strong>ขึ้นราคา แต่คุณภาพยังเท่าเดิม (4.0 ดาว)<br><strong>ยี่ห้ออื่น:</strong> 350 บาท / 4.0 ดาว (มีอยู่)<br><br>ลากสไลด์หาจุดที่ทำให้คุณรู้สึกว่า<br>"เลือกอะไรก็ได้เหมือนกัน"',
-    aStyle:'warning', bLbl:'ยี่ห้ออื่น', bStyle:'alt',
-    aP:v=>parseInt(v), aQ:()=>4, bP:()=>350, bQ:()=>4,
-    min:351, max:600, step:1, def:450, unit:'บาท', isWarn:true,
+    aStyle:'warning',bLbl:'ยี่ห้ออื่น',bStyle:'alt',
+    aP:v=>parseInt(v),aQ:()=>4,bP:()=>350,bQ:()=>4,
+    min:351,max:600,step:1,def:450,unit:'บาท',isWarn:true,
     diff:v=>`A ของโปรดคุณแพงขึ้น ${parseInt(v)-350} บาท (350 → ${v} บาท)`,
     sLabel:v=>`ราคายี่ห้อ A (ใหม่): ${v} บาท`,
-    onUpdate:v=>{ updateCard('ยี่ห้อA', parseInt(v), 4, '#ff6b6b'); }
+    onUpdate:v=>{updateCard('ยี่ห้อA',parseInt(v),4,'#ff6b6b');}
   },
-  r4: {
-    label:'รอบที่ 4/4', badge:'loss', badgeText:'ยี่ห้อ A ของโปรดแย่ลง',
+  r4:{label:'รอบที่ 4/4',badge:'loss',badgeText:'ยี่ห้อ A ของโปรดแย่ลง',
     title:'ถ้า A ของโปรดคุณภาพลด?',
     think:'A ของโปรดฉัน\nคุณภาพแย่ลง...\nยังรักอยู่แต่\nทนได้แค่ไหน?',
     desc:'<strong>ยี่ห้อ A ของโปรด</strong>คุณภาพลดลง แต่ราคายังเท่าเดิม (350 บาท)<br><strong>ยี่ห้ออื่น:</strong> 350 บาท / 4.0 ดาว (มีอยู่)<br><br>ลากสไลด์หาจุดที่ทำให้คุณรู้สึกว่า<br>"เลือกอะไรก็ได้เหมือนกัน"',
-    aStyle:'warning', bLbl:'ยี่ห้ออื่น', bStyle:'alt',
-    aP:()=>350, aQ:v=>parseFloat(v), bP:()=>350, bQ:()=>4,
-    min:1.0, max:3.9, step:0.1, def:3.5, unit:'ดาว', isWarn:true,
+    aStyle:'warning',bLbl:'ยี่ห้ออื่น',bStyle:'alt',
+    aP:()=>350,aQ:v=>parseFloat(v),bP:()=>350,bQ:()=>4,
+    min:1.0,max:3.9,step:0.1,def:3.5,unit:'ดาว',isWarn:true,
     diff:v=>`A ของโปรดคุณคุณภาพลด ${(4-parseFloat(v)).toFixed(1)} ดาว (4.0 → ${parseFloat(v).toFixed(1)} ดาว)`,
     sLabel:v=>`คุณภาพยี่ห้อ A (ใหม่): ${parseFloat(v).toFixed(1)} ดาว`,
-    onUpdate:v=>{ updateCard('ยี่ห้อA', 350, parseFloat(v), '#ff6b6b'); }
+    onUpdate:v=>{updateCard('ยี่ห้อA',350,parseFloat(v),'#ff6b6b');}
   }
 };
 
-const FLOW = ['welcome','demo','reference','r1','r2','r3','r4','validation','results'];
+const FLOW=['welcome','demo','reference','r1','r2','r3','r4','validation','results'];
 
-function computeParams() {
-  const dPG = Math.max(0.01, 350 - sliders.r1);
-  const dQG = Math.max(0.01, sliders.r2 - 4);
-  const dPL = Math.max(0.01, sliders.r3 - 350);
-  const dQL = Math.max(0.01, 4 - sliders.r4);
-  const aB = dPG / dQG, lP = dPL / dPG, lQ = dQL / dQG;
-  return {
-    dPG: dPG.toFixed(0), dQG: dQG.toFixed(1),
-    dPL: dPL.toFixed(0), dQL: dQL.toFixed(1),
-    alphaBeta: aB.toFixed(2), lambdaP: lP.toFixed(2), lambdaQ: lQ.toFixed(2),
-    predicted: (151 - aB * lQ) > 0 ? 'B' : 'A',
-    score: (151 - aB * lQ).toFixed(1),
+function computeParams(){
+  const dPG=Math.max(0.01,350-sliders.r1),dQG=Math.max(0.01,sliders.r2-4);
+  const dPL=Math.max(0.01,sliders.r3-350),dQL=Math.max(0.01,4-sliders.r4);
+  const aB=dPG/dQG,lP=dPL/dPG,lQ=dQL/dQG;
+  return{
+    dPG:dPG.toFixed(0),dQG:dQG.toFixed(1),dPL:dPL.toFixed(0),dQL:dQL.toFixed(1),
+    alphaBeta:aB.toFixed(2),lambdaP:lP.toFixed(2),lambdaQ:lQ.toFixed(2),
+    predicted:(151-aB*lQ)>0?'B':'A',
+    score:(151-aB*lQ).toFixed(1),
   };
 }
 
-function nextStep() {
-  const i = FLOW.indexOf(step);
-  if (i < FLOW.length - 1) { step = FLOW[i+1]; render(); }
+function nextStep(){const i=FLOW.indexOf(step);if(i<FLOW.length-1){step=FLOW[i+1];render();}}
+
+function progHTML(){
+  const rk=['r1','r2','r3','r4'],cur=rk.indexOf(step);
+  return'<div class="prog">'+rk.map((k,i)=>{
+    let c='prog-seg';
+    if(i<cur)c+=' prog-done';else if(i===cur)c+=' prog-cur';
+    return`<div class="${c}"></div>`;
+  }).join('')+'</div>';
 }
 
-function progHTML() {
-  const rk = ['r1','r2','r3','r4'], cur = rk.indexOf(step);
-  return '<div class="prog">' + rk.map((k,i) => {
-    let c = 'prog-seg';
-    if (i < cur) c += ' prog-done';
-    else if (i === cur) c += ' prog-cur';
-    return `<div class="${c}"></div>`;
-  }).join('') + '</div>';
+/* ── Save via GET request (reliable with no-cors) ── */
+async function saveToSheets(payload) {
+  if (SHEETS_URL === 'YOUR_SCRIPT_URL_HERE') {
+    console.warn('Google Sheets URL not set — skipping save');
+    return 'no-url';
+  }
+  try {
+    const params = new URLSearchParams(payload);
+    await fetch(SHEETS_URL + '?' + params.toString(), {
+      method: 'GET',
+      mode: 'no-cors'
+    });
+    return 'ok';
+  } catch(e) {
+    console.error('Save error:', e);
+    return 'error';
+  }
 }
 
-/* ── Screen renderers ── */
-
-function renderWelcome() {
-  document.getElementById('screen').innerHTML = `
+function renderWelcome(){
+  document.getElementById('screen').innerHTML=`
     <div style="text-align:center;margin-bottom:18px">
       <div class="gfont" style="font-size:8px;color:#a8c8e8;letter-spacing:2px;margin-bottom:8px">CHULALONGKORN ECONOMICS</div>
       <div class="gfont" style="font-size:18px;color:#ffd700;text-shadow:3px 3px 0 #b38600;margin-bottom:2px">SKIN</div>
@@ -300,54 +283,41 @@ function renderWelcome() {
       ใช้เวลาประมาณ 10 นาที ไม่มีคำตอบถูกหรือผิด
     </div>
     <div class="bfont" style="font-size:12px;color:#5a6a8a;line-height:1.8;margin-bottom:8px">
-      โดยนายธนัช เจตะวัฒนะ<br>
-      คณะเศรษฐศาสตร์ จุฬาลงกรณ์มหาวิทยาลัย
+      โดยนายธนัช เจตะวัฒนะ<br>คณะเศรษฐศาสตร์ จุฬาลงกรณ์มหาวิทยาลัย
     </div>
     <button class="btn" id="s0">► เริ่มเกม!</button>`;
-  document.getElementById('s0').onclick = nextStep;
+  document.getElementById('s0').onclick=nextStep;
 }
 
-function renderDemo() {
-  document.getElementById('screen').innerHTML = `
+function renderDemo(){
+  document.getElementById('screen').innerHTML=`
     <div class="title gfont">ข้อมูลเบื้องต้น</div>
     <label class="lbl-form">เพศ</label>
-    <select id="g">
-      <option value="">-- กรุณาเลือก --</option>
-      <option>ชาย</option><option>หญิง</option><option>ไม่ระบุ</option>
-    </select>
+    <select id="g"><option value="">-- กรุณาเลือก --</option><option>ชาย</option><option>หญิง</option><option>ไม่ระบุ</option></select>
     <label class="lbl-form">อายุ</label>
-    <select id="a">
-      <option value="">-- กรุณาเลือก --</option>
-      <option>ต่ำกว่า 20 ปี</option><option>20-25 ปี</option>
-      <option>26-35 ปี</option><option>36 ปีขึ้นไป</option>
-    </select>
+    <select id="a"><option value="">-- กรุณาเลือก --</option><option>ต่ำกว่า 20 ปี</option><option>20-25 ปี</option><option>26-35 ปี</option><option>36 ปีขึ้นไป</option></select>
     <label class="lbl-form">ความถี่ซื้อผลิตภัณฑ์บำรุงผิว</label>
-    <select id="f">
-      <option value="">-- กรุณาเลือก --</option>
-      <option>แทบไม่ซื้อเลย</option><option>บางครั้ง</option>
-      <option>บ่อยครั้ง</option><option>ซื้อเป็นประจำ</option>
-    </select>
+    <select id="f"><option value="">-- กรุณาเลือก --</option><option>แทบไม่ซื้อเลย</option><option>บางครั้ง</option><option>บ่อยครั้ง</option><option>ซื้อเป็นประจำ</option></select>
     <button class="btn" id="db" disabled>ถัดไป →</button>`;
-  if (demo.gender) document.getElementById('g').value = demo.gender;
-  if (demo.age) document.getElementById('a').value = demo.age;
-  if (demo.freq) document.getElementById('f').value = demo.freq;
-  function chk() {
-    demo.gender = document.getElementById('g').value;
-    demo.age = document.getElementById('a').value;
-    demo.freq = document.getElementById('f').value;
-    document.getElementById('db').disabled = !(demo.gender && demo.age && demo.freq);
+  if(demo.gender)document.getElementById('g').value=demo.gender;
+  if(demo.age)document.getElementById('a').value=demo.age;
+  if(demo.freq)document.getElementById('f').value=demo.freq;
+  function chk(){
+    demo.gender=document.getElementById('g').value;
+    demo.age=document.getElementById('a').value;
+    demo.freq=document.getElementById('f').value;
+    document.getElementById('db').disabled=!(demo.gender&&demo.age&&demo.freq);
   }
-  ['g','a','f'].forEach(id => document.getElementById(id).onchange = chk);
-  document.getElementById('db').onclick = nextStep;
-  chk();
+  ['g','a','f'].forEach(id=>document.getElementById(id).onchange=chk);
+  document.getElementById('db').onclick=nextStep;chk();
 }
 
-function renderReference() {
-  document.getElementById('screen').innerHTML = `
+function renderReference(){
+  document.getElementById('screen').innerHTML=`
     <div class="title gfont">ยี่ห้อ A ของโปรดคุณ</div>
     <div style="display:flex;gap:14px;align-items:flex-start;margin-bottom:14px">
       <div>${bubbleHTML('นี่คือของโปรด\nที่ฉันใช้เสมอ\nและชื่นชอบมาก!')}${charHTML()}</div>
-      ${pcardHTML('ยี่ห้อ A', 350, 4, 'normal', true)}
+      ${pcardHTML('ยี่ห้อ A',350,4,'normal',true)}
     </div>
     <div class="bfont" style="font-size:14px;color:#c8dff0;line-height:1.8;margin-bottom:14px">
       ยี่ห้อ A คือสินค้าที่คุณซื้อและใช้เป็นประจำมาตลอด<br>
@@ -357,42 +327,38 @@ function renderReference() {
       <strong style="color:#ffd700">"เลือกอะไรก็ได้เหมือนกัน"</strong>
     </div>
     <button class="btn" style="background:#2a7f4f;border-color:#145a32;color:#a8ffce" id="rb">► เข้าใจแล้ว เริ่มเลย!</button>`;
-  document.getElementById('rb').onclick = nextStep;
+  document.getElementById('rb').onclick=nextStep;
 }
 
-function renderRound(key) {
-  const rd = ROUNDS[key], val = sliders[key];
-  const badgeCls = rd.badge === 'gain' ? 'badge-gain' : 'badge-loss';
-  const diffCls = rd.isWarn ? 'diff-box diff-warn' : 'diff-box';
-  document.getElementById('screen').innerHTML = `
+function renderRound(key){
+  const rd=ROUNDS[key],val=sliders[key];
+  const badgeCls=rd.badge==='gain'?'badge-gain':'badge-loss';
+  const diffCls=rd.isWarn?'diff-box diff-warn':'diff-box';
+  document.getElementById('screen').innerHTML=`
     ${progHTML()}
     <div style="margin-bottom:6px"><span class="${badgeCls}">${rd.badgeText}</span></div>
     <div class="round-label">${rd.label}</div>
     <div class="title gfont">${rd.title}</div>
     ${favReminderHTML()}
-    ${shelfHTML(rd.aP(val), rd.aQ(val), rd.bLbl, rd.bP(val), rd.bQ(val), rd.think, rd.aStyle, rd.bStyle)}
+    ${shelfHTML(rd.aP(val),rd.aQ(val),rd.bLbl,rd.bP(val),rd.bQ(val),rd.think,rd.aStyle,rd.bStyle)}
     <div class="${diffCls}" id="dt">${rd.diff(val)}</div>
     <div class="desc-txt">${rd.desc}</div>
     <span class="slider-label gfont" id="sl">${rd.sLabel(val)}</span>
-    <input type="range" ${rd.isWarn ? 'class="warn"' : ''} id="ms"
-      min="${rd.min}" max="${rd.max}" step="${rd.step}" value="${val}">
-    <div class="range-labels">
-      <span>${rd.min} ${rd.unit}</span>
-      <span>${rd.max} ${rd.unit}</span>
-    </div>
+    <input type="range" ${rd.isWarn?'class="warn"':''} id="ms" min="${rd.min}" max="${rd.max}" step="${rd.step}" value="${val}">
+    <div class="range-labels"><span>${rd.min} ${rd.unit}</span><span>${rd.max} ${rd.unit}</span></div>
     <button class="btn" id="nb">บันทึก → รอบถัดไป</button>`;
-  document.getElementById('ms').oninput = () => {
-    const v = parseFloat(document.getElementById('ms').value);
-    sliders[key] = v;
-    document.getElementById('dt').textContent = rd.diff(v);
-    document.getElementById('sl').textContent = rd.sLabel(v);
+  document.getElementById('ms').oninput=()=>{
+    const v=parseFloat(document.getElementById('ms').value);
+    sliders[key]=v;
+    document.getElementById('dt').textContent=rd.diff(v);
+    document.getElementById('sl').textContent=rd.sLabel(v);
     rd.onUpdate(v);
   };
-  document.getElementById('nb').onclick = nextStep;
+  document.getElementById('nb').onclick=nextStep;
 }
 
-function renderValidation() {
-  document.getElementById('screen').innerHTML = `
+function renderValidation(){
+  document.getElementById('screen').innerHTML=`
     <div class="title gfont">รอบสุดท้าย!</div>
     ${favReminderHTML()}
     ${shelfHTML(350,4,'ยี่ห้อ B',199,3,
@@ -406,68 +372,47 @@ function renderValidation() {
       คุณจะเลือกอะไร?
     </div>
     <div class="btn-row">
-      <button class="btn" id="ca"
-        style="background:${choice==='A'?'#2a7f4f':'#1a2a3a'};border-color:${choice==='A'?'#145a32':'#3a4f6a'};color:${choice==='A'?'#a8ffce':'#a8c8e8'}">
-        ${choice==='A'?'✓ ':''}A ของโปรด
-      </button>
-      <button class="btn" id="cb"
-        style="background:${choice==='B'?'#2a7f4f':'#1a2a3a'};border-color:${choice==='B'?'#145a32':'#3a4f6a'};color:${choice==='B'?'#a8ffce':'#a8c8e8'}">
-        ${choice==='B'?'✓ ':''}ยี่ห้อ B
-      </button>
+      <button class="btn" id="ca" style="background:${choice==='A'?'#2a7f4f':'#1a2a3a'};border-color:${choice==='A'?'#145a32':'#3a4f6a'};color:${choice==='A'?'#a8ffce':'#a8c8e8'}">${choice==='A'?'✓ ':''}A ของโปรด</button>
+      <button class="btn" id="cb" style="background:${choice==='B'?'#2a7f4f':'#1a2a3a'};border-color:${choice==='B'?'#145a32':'#3a4f6a'};color:${choice==='B'?'#a8ffce':'#a8c8e8'}">${choice==='B'?'✓ ':''}ยี่ห้อ B</button>
     </div>
-    <button class="btn" id="sb" ${!choice?'disabled':''}
-      style="background:#2a7f4f;border-color:#145a32;color:#a8ffce;margin-top:12px">
-      ► ส่งคำตอบทั้งหมด
-    </button>`;
-  document.getElementById('ca').onclick = () => { choice = 'A'; renderValidation(); };
-  document.getElementById('cb').onclick = () => { choice = 'B'; renderValidation(); };
-  document.getElementById('sb').onclick = async () => {
-    document.getElementById('sb').textContent = 'กำลังบันทึก...';
-    document.getElementById('sb').disabled = true;
-    const p = computeParams();
-    const payload = {
-      timestamp: new Date().toISOString(), ...demo,
-      priceGainThreshold: p.dPG, qualityGainThreshold: p.dQG,
-      priceLossThreshold: p.dPL, qualityLossThreshold: p.dQL,
-      validationChoice: choice, modelPrediction: p.predicted,
-      predictionMatch: (p.predicted === choice) ? 'yes' : 'no',
-      alphaBeta: p.alphaBeta, lambdaP: p.lambdaP, lambdaQ: p.lambdaQ
+    <button class="btn" id="sb" ${!choice?'disabled':''} style="background:#2a7f4f;border-color:#145a32;color:#a8ffce;margin-top:12px">► ส่งคำตอบทั้งหมด</button>`;
+  document.getElementById('ca').onclick=()=>{choice='A';renderValidation();};
+  document.getElementById('cb').onclick=()=>{choice='B';renderValidation();};
+  document.getElementById('sb').onclick=async()=>{
+    const btn=document.getElementById('sb');
+    btn.textContent='กำลังบันทึก...';
+    btn.disabled=true;
+    const p=computeParams();
+    const payload={
+      timestamp:new Date().toISOString(),
+      gender:demo.gender,age:demo.age,freq:demo.freq,
+      priceGainThreshold:p.dPG,qualityGainThreshold:p.dQG,
+      priceLossThreshold:p.dPL,qualityLossThreshold:p.dQL,
+      validationChoice:choice,modelPrediction:p.predicted,
+      predictionMatch:(p.predicted===choice)?'yes':'no',
+      alphaBeta:p.alphaBeta,lambdaP:p.lambdaP,lambdaQ:p.lambdaQ
     };
-    try {
-      await fetch(SHEETS_URL, {
-        method: 'POST', mode: 'no-cors',
-        body: JSON.stringify(payload),
-        headers: {'Content-Type': 'application/json'}
-      });
-    } catch(e) {}
+    const status=await saveToSheets(payload);
     nextStep();
   };
 }
 
-function renderResults() {
-  const p = computeParams();
-  const lP = parseFloat(p.lambdaP), lQ = parseFloat(p.lambdaQ);
-  const match = p.predicted === choice;
-  document.getElementById('screen').innerHTML = `
+function renderResults(){
+  const p=computeParams();
+  const lP=parseFloat(p.lambdaP),lQ=parseFloat(p.lambdaQ);
+  const match=p.predicted===choice;
+  document.getElementById('screen').innerHTML=`
     <div style="text-align:center;margin-bottom:14px">
       <div class="gfont" style="font-size:13px;color:#2a7f4f;text-shadow:2px 2px 0 #145a32;margin-bottom:10px">GAME CLEAR!</div>
       <div style="display:flex;justify-content:center">${charHTML()}</div>
     </div>
     <div class="title gfont">ขอบคุณมาก!</div>
-    <div style="background:#0f0e1a;border:2px solid #ffd700;padding:14px;margin-bottom:10px">
+    <div class="save-status save-ok bfont">✓ คำตอบของคุณถูกบันทึกเรียบร้อยแล้ว</div>
+    <div style="background:#0f0e1a;border:2px solid #ffd700;padding:14px;margin-top:10px;margin-bottom:10px">
       <div class="gfont" style="font-size:9px;color:#ffd700;margin-bottom:10px">จุดสลับที่คุณพบ</div>
-      ${[
-        ['ΔP* — B ถูกกว่าเท่าไหร่', p.dPG+' บาท'],
-        ['ΔQ_gain — B ดีกว่าเท่าไหร่', p.dQG+' ดาว'],
-        ['ΔP_loss — A แพงขึ้นเท่าไหร่', p.dPL+' บาท'],
-        ['ΔQ* — A แย่ลงเท่าไหร่', p.dQL+' ดาว'],
-      ].map(([l,v]) => `<div class="result-row"><span>${l}</span><span class="result-val">${v}</span></div>`).join('')}
+      ${[['ΔP* — B ถูกกว่าเท่าไหร่',p.dPG+' บาท'],['ΔQ_gain — B ดีกว่าเท่าไหร่',p.dQG+' ดาว'],['ΔP_loss — A แพงขึ้นเท่าไหร่',p.dPL+' บาท'],['ΔQ* — A แย่ลงเท่าไหร่',p.dQL+' ดาว']].map(([l,v])=>`<div class="result-row"><span>${l}</span><span class="result-val">${v}</span></div>`).join('')}
       <div class="gfont" style="font-size:8px;color:#5a6a8a;margin:10px 0 6px">พารามิเตอร์ (θ = 1, linear)</div>
-      ${[
-        ['α/β — น้ำหนักคุณภาพ/ราคา', p.alphaBeta],
-        ['λP — price loss aversion', p.lambdaP],
-        ['λQ — quality loss aversion', p.lambdaQ],
-      ].map(([l,v]) => `<div class="result-row"><span>${l}</span><span class="result-val">${v}</span></div>`).join('')}
+      ${[['α/β — น้ำหนักคุณภาพ/ราคา',p.alphaBeta],['λP — price loss aversion',p.lambdaP],['λQ — quality loss aversion',p.lambdaQ]].map(([l,v])=>`<div class="result-row"><span>${l}</span><span class="result-val">${v}</span></div>`).join('')}
       <div style="margin-top:10px">
         <span class="tag ${lP>1?'tag-yes':'tag-no'}">λP ${lP>1?'> 1 ✓':'≤ 1'}</span>
         <span class="tag ${lQ>1?'tag-yes':'tag-no'}" style="margin-left:6px">λQ ${lQ>1?'> 1 ✓':'≤ 1'}</span>
@@ -482,28 +427,25 @@ function renderResults() {
       </div>
       <div class="bfont" style="font-size:12px;color:#5a6a8a;margin-top:8px;line-height:1.7">
         สูตร: เลือก B ถ้า 151 > (α/β × λQ)<br>
-        = 151 > (${p.alphaBeta} × ${p.lambdaQ})
-        = 151 > ${(parseFloat(p.alphaBeta)*parseFloat(p.lambdaQ)).toFixed(1)}<br>
+        = 151 > (${p.alphaBeta} × ${p.lambdaQ}) = 151 > ${(parseFloat(p.alphaBeta)*parseFloat(p.lambdaQ)).toFixed(1)}<br>
         → ${parseFloat(p.score)>0?'151 > ค่า ∴ เลือก B':'151 < ค่า ∴ เลือก A'}
       </div>
     </div>
     <div class="bfont" style="font-size:12px;color:#5a6a8a;line-height:1.8;text-align:center;margin-top:10px">
-      โดยนายธนัช เจตะวัฒนะ<br>
-      คณะเศรษฐศาสตร์ จุฬาลงกรณ์มหาวิทยาลัย
+      โดยนายธนัช เจตะวัฒนะ<br>คณะเศรษฐศาสตร์ จุฬาลงกรณ์มหาวิทยาลัย
     </div>`;
 }
 
-function render() {
-  switch(step) {
-    case 'welcome':    renderWelcome(); break;
-    case 'demo':       renderDemo(); break;
-    case 'reference':  renderReference(); break;
-    case 'r1': case 'r2': case 'r3': case 'r4': renderRound(step); break;
-    case 'validation': renderValidation(); break;
-    case 'results':    renderResults(); break;
+function render(){
+  switch(step){
+    case 'welcome':renderWelcome();break;
+    case 'demo':renderDemo();break;
+    case 'reference':renderReference();break;
+    case 'r1':case 'r2':case 'r3':case 'r4':renderRound(step);break;
+    case 'validation':renderValidation();break;
+    case 'results':renderResults();break;
   }
 }
-
 render();
 </script>
 </body>
